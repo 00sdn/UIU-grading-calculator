@@ -2,7 +2,9 @@
 
 A smart and intuitive grading system built for **United International University (UIU)** students. This web-based tool helps you calculate your **CGPA**, **GPA**, and manage **retake scenarios** with precision and ease.
 
----
+
+![screenshot](UIUGC.png)
+
 
 ## 🚀 Features
 
@@ -12,7 +14,7 @@ A smart and intuitive grading system built for **United International University
 - 📊 **Credit Tracking** – Keeps track of total completed credits.
 - 💡 **User-Friendly Interface** – Clean design for fast and accurate input.
 
----
+
 
 ## 🧠 Retake Logic Explained
 
@@ -21,7 +23,7 @@ When you retake a course:
 - **Credits remain unchanged**.
 - The system recalculates your CGPA based on updated grade points.
 
----
+
 
 ## 🛠️ Tech Stack
 
@@ -29,7 +31,7 @@ When you retake a course:
 - **Backend (optional)**: Python / Node.js *(if applicable)*
 - **Hosted on**: GitHub Pages / Vercel *(update based on your deployment)*
 
----
+
 
 ## 📦 Installation
 
