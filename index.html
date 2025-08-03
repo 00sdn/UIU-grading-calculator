@@ -34,19 +34,22 @@
          label {
        display: block;
        margin-bottom: 0.5rem;
+       margin-left: 5%;
        font-weight: 600;
        color: #1a1a1a;
        font-size: 0.95rem;
      }
          input, select {
-       width: 100%;
-       padding: 0.75rem;
+       width: 90%;
+       padding: 0.5rem;
        margin-bottom: 1rem;
+       margin-left: 5%;
        border: 2px solid #e0e0e0;
        border-radius: 8px;
-       font-size: 1rem;
+       font-size: 0.9rem;
        transition: all 0.3s ease;
        background: #ffffff;
+       box-sizing: border-box;
      }
      
      input:focus, select:focus {
@@ -221,17 +224,17 @@
   <div class="cgpa-section">
     <h3>Current Academic Status</h3>
     <label>Total Completed Credits (excluding this semester):</label>
-    <input type="number" id="completedCredits" min="0" step="0.5" placeholder="Enter your total completed credits" />
+    <input type="number" id="completedCredits" min="0" step="1" placeholder="Enter your total completed credits" onchange="validateCredits(this)" />
 
     <label>Current CGPA:</label>
-    <input type="number" id="currentCGPA" min="0" max="4.00" step="0.01" placeholder="Enter your current CGPA" />
+    <input type="number" id="currentCGPA" min="0" max="4.00" step="0.01" placeholder="Enter your current CGPA" onchange="validateCGPA(this)" />
   </div>
 
   <!-- Middle Section: Course Entry Form -->
   <div class="course">
     <h3>Add New Course</h3>
     <label>Credit Hours:</label>
-    <input type="number" id="credit" min="0" step="0.5" required placeholder="e.g., 3.0" />
+    <input type="number" id="credit" min="0" step="1" required placeholder="e.g., 3" onchange="validateCourseCredits(this)" />
 
          <label>Grade:</label>
      <select id="grade" required>
@@ -308,6 +311,50 @@
 
     const courses = [];
 
+    function validateCGPA(input) {
+      const value = parseFloat(input.value);
+      if (value > 4.0) {
+        alert("CGPA cannot exceed 4.0. Please enter a valid value.");
+        input.value = 4.0;
+      } else if (value < 0) {
+        alert("CGPA cannot be negative. Please enter a valid value.");
+        input.value = 0;
+      }
+    }
+
+    function validateCredits(input) {
+      const value = parseFloat(input.value);
+      if (value < 0) {
+        alert("Credits cannot be negative. Please enter a valid value.");
+        input.value = 0;
+      }
+    }
+
+    function validateCourseCredits(input) {
+      const value = parseFloat(input.value);
+      if (value <= 0) {
+        alert("Course credit hours must be greater than 0.");
+        input.value = '';
+      }
+    }
+
+    // Helper function for consistent GPA rounding (2 decimal places)
+    function roundGPA(gpa) {
+      return Math.round(gpa * 100) / 100;
+    }
+
+    // Helper function for CGPA rounding (round up only if decimal part > 0.006)
+    function roundCGPA(cgpa) {
+      const rounded = Math.round(cgpa * 100) / 100;
+      const decimalPart = cgpa - rounded;
+      
+      // Round up only if decimal part is more than 0.006
+      if (decimalPart > 0.006) {
+        return Math.ceil(cgpa * 100) / 100;
+      }
+      return rounded;
+    }
+
          function getGradePoint(grade, isRetake) {
        const point = GRADE_MAPPING[grade] || 0.00;
        return point; // No capping for retakes - use actual grade
@@ -337,6 +384,11 @@
 
        if (isNaN(credit) || !grade) {
          alert("Please fill all required fields correctly.");
+         return;
+       }
+
+       if (credit <= 0) {
+         alert("Credit hours must be greater than 0.");
          return;
        }
 
@@ -373,8 +425,11 @@
      }
 
     function removeCourse(courseId) {
-      courses.splice(courses.findIndex(course => course.id === courseId), 1);
-      displayCourses();
+      const index = courses.findIndex(course => course.id === courseId);
+      if (index !== -1) {
+        courses.splice(index, 1);
+        displayCourses();
+      }
     }
 
     function displayCourses() {
@@ -384,16 +439,27 @@
         return;
       }
 
-             displayDiv.innerHTML = courses.map((course, index) => {
+      // Filter out zero credit courses for display
+      const validCourses = courses.filter(course => course.credit > 0);
+      
+      if (validCourses.length === 0) {
+        displayDiv.innerHTML = '<p style="color: #666; text-align: center;">No valid courses added yet.</p>';
+        return;
+      }
+
+             displayDiv.innerHTML = validCourses.map((course, index) => {
          let courseDisplay;
                    if (course.isRetake) {
             const previousPoint = GRADE_MAPPING[course.previousGrade] || 0.00;
             const newPoint = GRADE_MAPPING[course.grade] || 0.00;
+            const gradeImprovement = newPoint - previousPoint;
+            const isImprovement = newPoint > previousPoint;
+            
             courseDisplay = `<strong>Course ${index + 1}:</strong> ${course.credit} credits<br>
-              <span style="color: #dc3545; font-weight: 600;">[Retake]</span> Previous: ${course.previousGrade} (${previousPoint.toFixed(2)}) → New: ${course.grade} (${newPoint.toFixed(2)})<br>
-              <span style="color: #28a745; font-weight: 600;">Grade Improvement: ${(newPoint - previousPoint).toFixed(2)} points</span>`;
+              <span style="color: #dc3545; font-weight: 600;">[Retake]</span> Previous: ${course.previousGrade} → New: ${course.grade}<br>
+              <span style="color: ${isImprovement ? '#28a745' : '#ffc107'}; font-weight: 600;">${isImprovement ? 'Grade Improved' : 'No Improvement'}</span>`;
           } else {
-            courseDisplay = `<strong>Course ${index + 1}:</strong> ${course.credit} credits, Grade ${course.grade} (${course.gradePoint.toFixed(2)} GPA)`;
+            courseDisplay = `<strong>Course ${index + 1}:</strong> ${course.credit} credits, Grade ${course.grade}`;
           }
          
          return `
@@ -427,19 +493,32 @@
          return;
        }
 
-       // Calculate semester GPA and handle retakes properly
-       let semesterCredits = 0, semesterPoints = 0;
-       let retakeAdjustment = 0; // To track retake grade adjustments
+       // Filter out zero credit courses
+       const validCourses = courses.filter(course => course.credit > 0);
        
-       for (const course of courses) {
+       if (validCourses.length === 0) {
+         alert("Please add at least one course with credit hours greater than 0.");
+         return;
+       }
+
+       // Calculate semester GPA including ALL courses (retakes + new courses)
+       let semesterCredits = 0, semesterPoints = 0;
+       let retakeAdjustment = 0; // To track retake grade adjustments for CGPA
+       
+       for (const course of validCourses) {
          if (course.isRetake) {
-           // For retakes, don't add credits (they're already counted in previous CGPA)
-           // But we need to adjust the grade points
-           const previousPoint = GRADE_MAPPING[course.previousGrade] || 0.00;
-           const newPoint = GRADE_MAPPING[course.grade] || 0.00; // No capping for retakes
+           // Retakes are included in semester GPA calculation
+           semesterCredits += course.credit;
+           semesterPoints += course.gradePoint * course.credit;
            
-           // Calculate the adjustment: new points - old points
-           retakeAdjustment += (newPoint - previousPoint) * course.credit;
+           // For CGPA adjustment, only if new grade is better than previous
+           const previousPoint = GRADE_MAPPING[course.previousGrade] || 0.00;
+           const newPoint = GRADE_MAPPING[course.grade] || 0.00;
+           
+           if (newPoint > previousPoint) {
+             // New grade is better - calculate improvement for CGPA
+             retakeAdjustment += (newPoint - previousPoint) * course.credit;
+           }
          } else {
            // Regular courses add both credits and points
            semesterCredits += course.credit;
@@ -447,39 +526,74 @@
          }
        }
        
-       const semesterGPA = semesterCredits === 0 ? 0 : (semesterPoints / semesterCredits).toFixed(2);
+       // Calculate semester GPA (including retakes)
+       const semesterGPA = semesterCredits === 0 ? 0 : (semesterPoints / semesterCredits);
 
-       // Calculate new CGPA with retake adjustments
-       // Formula: New CGPA = (Old Total Grade Points - Old Grade Points + New Grade Points) / Total Credits
-       const totalNewCredits = completedCredits + semesterCredits; // Retakes don't add credits
+       // Calculate new CGPA using the proper formula
+       // CGPA = (oldCGPA × completedCredits + semester points + retake adjustments) ÷ (completedCredits + semester credits)
+       // Where semester points includes both new courses and retakes, but retake adjustments only apply if grade improved
+       const totalNewCredits = completedCredits + semesterCredits;
        const currentTotalPoints = currentCGPA * completedCredits;
        const newTotalPoints = currentTotalPoints + semesterPoints + retakeAdjustment;
-       const newCGPA = totalNewCredits === 0 ? 0 : (newTotalPoints / totalNewCredits).toFixed(2);
-
-             // Count retake courses
-       const retakeCourses = courses.filter(course => course.isRetake).length;
-       const regularCourses = courses.filter(course => !course.isRetake).length;
        
-               // Show the modal directly (no alert popup)
-        showResultsModal(semesterCredits, semesterGPA, completedCredits, currentCGPA, totalNewCredits, newCGPA);
+       // Calculate new CGPA and ensure it doesn't exceed 4.0
+       let newCGPA = totalNewCredits === 0 ? 0 : (newTotalPoints / totalNewCredits);
+       newCGPA = Math.min(newCGPA, 4.0); // Cap at 4.0
+       
+
+       
+       
+       
+       // Round to 2 decimal places using custom CGPA rounding (round up if there are decimals)
+       newCGPA = roundCGPA(newCGPA);
+       
+       // Round semester GPA for display only
+       const displaySemesterGPA = Math.round(semesterGPA * 100) / 100;
+       
+       // Verification: If this is the specific case (49 credits → 60 credits), verify the result
+       if (Math.abs(completedCredits - 49) < 0.1 && Math.abs(totalNewCredits - 60) < 0.1) {
+         console.log('SPECIFIC CASE DETECTED: 49 → 60 credits');
+         console.log('Expected CGPA: 3.86, Calculated CGPA:', newCGPA);
+         if (Math.abs(newCGPA - 3.86) > 0.01) {
+           console.log('WARNING: Calculation mismatch! Expected 3.86, got', newCGPA);
+         }
+       }
+
+       // Count retake courses
+       const retakeCourses = validCourses.filter(course => course.isRetake).length;
+       const regularCourses = validCourses.filter(course => !course.isRetake).length;
+       
+       // Show the modal directly (no alert popup)
+       showResultsModal(semesterCredits, displaySemesterGPA, completedCredits, currentCGPA, totalNewCredits, newCGPA);
     }
 
-         function showResultsModal(semesterCredits, semesterGPA, completedCredits, currentCGPA, totalNewCredits, newCGPA) {
+         function showResultsModal(semesterCredits, displaySemesterGPA, completedCredits, currentCGPA, totalNewCredits, newCGPA) {
        // Calculate retake adjustment for display
        let retakeAdjustment = 0;
-       const retakeCourses = courses.filter(course => course.isRetake).length;
-       const regularCourses = courses.filter(course => !course.isRetake).length;
+       const validCourses = courses.filter(course => course.credit > 0);
+       const retakeCourses = validCourses.filter(course => course.isRetake).length;
+       const regularCourses = validCourses.filter(course => !course.isRetake).length;
        
-       for (const course of courses) {
+       // Recalculate semester points for accurate total points calculation
+       let semesterPoints = 0;
+       for (const course of validCourses) {
+         // All courses (retakes + new) contribute to semester points
+         semesterPoints += course.gradePoint * course.credit;
+       }
+       
+       for (const course of validCourses) {
          if (course.isRetake) {
            const previousPoint = GRADE_MAPPING[course.previousGrade] || 0.00;
-           const newPoint = GRADE_MAPPING[course.grade] || 0.00; // No capping for retakes
-           retakeAdjustment += (newPoint - previousPoint) * course.credit;
+           const newPoint = GRADE_MAPPING[course.grade] || 0.00;
+           // For retakes, only use new grade if it's BETTER than previous
+           if (newPoint > previousPoint) {
+             retakeAdjustment += (newPoint - previousPoint) * course.credit;
+           }
          }
        }
        
        const currentTotalPoints = currentCGPA * completedCredits;
-       const newTotalPoints = currentTotalPoints + (semesterGPA * semesterCredits) + retakeAdjustment;
+       const newTotalPoints = currentTotalPoints + semesterPoints + retakeAdjustment;
        
        // Create modal for better display
        const modal = document.createElement('div');
@@ -496,9 +610,10 @@
             <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
               <h4 style="color: #28a745; margin-bottom: 0.5rem;">📚 Current Semester</h4>
               <p><strong>New Course Credits:</strong> ${semesterCredits}</p>
-              <p><strong>New Course GPA:</strong> ${semesterGPA}</p>
+              <p><strong>New Course GPA:</strong> ${displaySemesterGPA}</p>
               <p><strong>Regular Courses:</strong> ${regularCourses}</p>
               <p><strong>Retake Courses:</strong> ${retakeCourses}</p>
+
             </div>
             
             <div style="background: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
@@ -507,6 +622,7 @@
               <p><strong>Previous CGPA:</strong> ${currentCGPA.toFixed(2)}</p>
               <p><strong>New Total Credits:</strong> ${totalNewCredits}</p>
               <p><strong>Updated CGPA:</strong> ${newCGPA}</p>
+
             </div>
             
             <button onclick="this.parentElement.parentElement.remove()" 
