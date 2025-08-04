@@ -642,34 +642,31 @@
        `;
        
                modal.innerHTML = `
-          <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%;">
-            <h3 style="color: #2563eb; margin-bottom: 1rem; text-align: center;">📊 Your Academic Results</h3>
-            
-            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-              <h4 style="color: #28a745; margin-bottom: 0.5rem;">📚 Current Semester</h4>
-              <p><strong>New Course Credits:</strong> ${semesterCredits}</p>
-              <p><strong>New Course GPA:</strong> ${displaySemesterGPA}</p>
-              <p><strong>Regular Courses:</strong> ${regularCourses}</p>
-              <p><strong>Retake Courses:</strong> ${retakeCourses}</p>
-
-            </div>
-            
-            <div style="background: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-              <h4 style="color: #1976d2; margin-bottom: 0.5rem;">🎓 Overall Academic Status</h4>
-              <p><strong>Previous Credits:</strong> ${completedCredits}</p>
-              <p><strong>Previous CGPA:</strong> ${currentCGPA.toFixed(2)}</p>
-              <p><strong>New Total Credits:</strong> ${totalNewCredits}</p>
-              <p><strong>Updated CGPA:</strong> ${newCGPA}</p>
-
-            </div>
-            
-            <button onclick="this.parentElement.parentElement.remove()" 
-                    style="background: #2563eb; color: white; padding: 0.5rem 1rem; 
-                           border: none; border-radius: 5px; cursor: pointer; width: 100%;">
-              Close
-            </button>
-          </div>
-        `;
+         <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%;">
+           <h3 style="color: #2563eb; margin-bottom: 1rem; text-align: center;">📊 Your Academic Results</h3>
+           <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+             <h4 style="color: #28a745; margin-bottom: 0.5rem;">📚 Current Semester</h4>
+             <p><strong>New Course Credits:</strong> ${semesterCredits}</p>
+             <p><strong>New Course GPA:</strong> ${displaySemesterGPA}</p>
+             <p><strong>Regular Courses:</strong> ${regularCourses}</p>
+             <p><strong>Retake Courses:</strong> ${retakeCourses}</p>
+           </div>
+           ${completedCredits > 0 && currentCGPA > 0 ? `
+           <div style="background: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+             <h4 style="color: #1976d2; margin-bottom: 0.5rem;">🎓 Overall Academic Status</h4>
+             <p><strong>Previous Credits:</strong> ${completedCredits}</p>
+             <p><strong>Previous CGPA:</strong> ${currentCGPA.toFixed(2)}</p>
+             <p><strong>New Total Credits:</strong> ${totalNewCredits}</p>
+             <p><strong>Updated CGPA:</strong> ${newCGPA}</p>
+           </div>
+           ` : ''}
+           <button onclick="this.parentElement.parentElement.remove()" 
+                   style="background: #2563eb; color: white; padding: 0.5rem 1rem; 
+                          border: none; border-radius: 5px; cursor: pointer; width: 100%;">
+             Close
+           </button>
+         </div>
+       `;
        
        document.body.appendChild(modal);
      }
