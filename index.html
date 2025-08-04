@@ -227,7 +227,7 @@
     <input type="number" id="completedCredits" min="0" step="1" placeholder="Enter your total completed credits" onchange="validateCredits(this)" />
 
     <label>Current CGPA:</label>
-    <input type="number" id="currentCGPA" min="0" max="4" step="0.01" placeholder="Enter your current CGPA" onchange="validateCGPA(this)" />
+    <input type="number" id="currentCGPA" min="0" max="4.00" step="0.01" placeholder="Enter your current CGPA" onchange="validateCGPA(this)" />
   </div>
 
   <!-- Middle Section: Course Entry Form -->
@@ -554,73 +554,63 @@
          return;
        }
 
-       // Build a map of courseCode -> best/latest attempt for current semester
-      const courseMap = new Map();
-      for (const course of validCourses) {
-        const code = course.code;
-        if (!code) continue;
-        if (!courseMap.has(code)) {
-          courseMap.set(code, course);
-        } else {
-          const existing = courseMap.get(code);
-          // Prefer retake over normal, or higher gradePoint if both are same type
-          if (course.isRetake && !existing.isRetake) {
-            courseMap.set(code, course);
-          } else if (course.isRetake && existing.isRetake) {
-            if (course.gradePoint > existing.gradePoint) {
-              courseMap.set(code, course);
-            }
-          } else if (!course.isRetake && !existing.isRetake) {
-            if (course.gradePoint > existing.gradePoint) {
-              courseMap.set(code, course);
-            }
-          }
-        }
-      }
-      const uniqueCourses = Array.from(courseMap.values());
-      const normalCourses = uniqueCourses.filter(course => !course.isRetake);
-      const retakeCourses = uniqueCourses.filter(course => course.isRetake);
+       // Separate normal and retake courses
+       const normalCourses = validCourses.filter(course => !course.isRetake);
+       const retakeCourses = validCourses.filter(course => course.isRetake);
 
-      // Calculate semester credits and points as before
-      let semesterCredits = 0, semesterPoints = 0;
-      for (const course of normalCourses) {
-        semesterCredits += course.credit;
-        semesterPoints += course.gradePoint * course.credit;
-      }
-      for (const course of retakeCourses) {
-        semesterCredits += course.credit;
-        semesterPoints += course.gradePoint * course.credit;
-      }
+       // Calculate semester GPA (Case 1, 2, 3 from your examples)
+       let semesterCredits = 0, semesterPoints = 0;
+       
+       // Add normal courses to semester calculation
+       for (const course of normalCourses) {
+         semesterCredits += course.credit;
+         semesterPoints += course.gradePoint * course.credit;
+       }
+       
+       // Add retake courses to semester calculation (only new grades count for GPA)
+       for (const course of retakeCourses) {
+         semesterCredits += course.credit;
+         semesterPoints += course.gradePoint * course.credit; // Use new grade only
+       }
+       
+       // Calculate semester GPA
+       let semesterGPA = semesterCredits === 0 ? 0 : (semesterPoints / semesterCredits);
+       semesterGPA = Math.min(semesterGPA, 4.0); // Cap semester GPA at 4.0
 
-      // Calculate semester GPA
-      let semesterGPA = semesterCredits === 0 ? 0 : (semesterPoints / semesterCredits);
-      semesterGPA = Math.min(semesterGPA, 4.0); // Cap semester GPA at 4.0
-
-      // Calculate new CGPA
-      let newCGPA;
-      let totalNewCredits;
-      if (completedCredits === 0) {
-        newCGPA = semesterGPA;
-        totalNewCredits = semesterCredits;
-      } else {
-        const currentTotalPoints = currentCGPA * completedCredits;
-        let newTotalPoints = currentTotalPoints;
-
-        // Remove old grade impact for retakes and add effective grade impact
-        for (const course of retakeCourses) {
-          const previousPoint = GRADE_MAPPING[course.previousGrade] || 0.00;
-          const effectivePoint = course.gradePoint;
-          newTotalPoints = newTotalPoints - (previousPoint * course.credit) + (effectivePoint * course.credit);
-        }
-        // Add normal courses as usual
-        for (const course of normalCourses) {
-          newTotalPoints += course.gradePoint * course.credit;
-        }
-
-        totalNewCredits = completedCredits + semesterCredits;
-        newCGPA = totalNewCredits === 0 ? 0 : (newTotalPoints / totalNewCredits);
-        newCGPA = Math.min(newCGPA, 4.0); // Cap at 4.0
-      }
+       // Calculate new CGPA based on the cases you provided
+       let newCGPA;
+       
+       if (completedCredits === 0) {
+         // Case 1: No Previous CGPA (First Semester) - CGPA = GPA
+         newCGPA = semesterGPA;
+       } else {
+         // Cases 2, 3, 4: With Previous CGPA
+         const currentTotalPoints = currentCGPA * completedCredits;
+         let newTotalPoints = currentTotalPoints;
+         
+         // Add normal courses as usual
+         for (const course of normalCourses) {
+           newTotalPoints += course.gradePoint * course.credit;
+         }
+         
+         // Handle retake courses
+         for (const course of retakeCourses) {
+           const previousPoint = GRADE_MAPPING[course.previousGrade] || 0.00;
+           const newPoint = GRADE_MAPPING[course.grade] || 0.00;
+           
+           // Use the maximum grade between previous and new
+           const effectivePoint = Math.max(previousPoint, newPoint);
+           
+           // Remove old grade impact and add effective grade impact
+           newTotalPoints = newTotalPoints - (previousPoint * course.credit) + (effectivePoint * course.credit);
+         }
+         
+         // Only add normal course credits to total credits for new CGPA
+         const newNormalCredits = normalCourses.reduce((sum, c) => sum + c.credit, 0);
+         const totalNewCredits = completedCredits + newNormalCredits;
+         newCGPA = totalNewCredits === 0 ? 0 : (newTotalPoints / totalNewCredits);
+         newCGPA = Math.min(newCGPA, 4.0); // Cap at 4.0
+       }
        
        // Debug logging
        console.log('Debug - Semester GPA:', semesterGPA, 'Semester Credits:', semesterCredits, 'Semester Points:', semesterPoints);
@@ -638,6 +628,9 @@
        const regularCoursesCount = normalCourses.length;
        
        // Show the modal directly (no alert popup)
+       // Only add normal course credits to total credits for display
+       const newNormalCredits = normalCourses.reduce((sum, c) => sum + c.credit, 0);
+       const totalNewCredits = completedCredits + newNormalCredits;
        showResultsModal(semesterCredits, displaySemesterGPA, completedCredits, currentCGPA, totalNewCredits, newCGPA);
     }
 
