@@ -583,31 +583,27 @@
        if (completedCredits === 0) {
          // Case 1: No Previous CGPA (First Semester) - CGPA = GPA
          newCGPA = semesterGPA;
+         // In this case, count both normal and retake credits for total credits
+         var totalNewCredits = normalCourses.reduce((sum, c) => sum + c.credit, 0) + retakeCourses.reduce((sum, c) => sum + c.credit, 0);
        } else {
          // Cases 2, 3, 4: With Previous CGPA
          const currentTotalPoints = currentCGPA * completedCredits;
          let newTotalPoints = currentTotalPoints;
-         
          // Add normal courses as usual
          for (const course of normalCourses) {
            newTotalPoints += course.gradePoint * course.credit;
          }
-         
          // Handle retake courses
          for (const course of retakeCourses) {
            const previousPoint = GRADE_MAPPING[course.previousGrade] || 0.00;
            const newPoint = GRADE_MAPPING[course.grade] || 0.00;
-           
            // Use the maximum grade between previous and new
            const effectivePoint = Math.max(previousPoint, newPoint);
-           
            // Remove old grade impact and add effective grade impact
            newTotalPoints = newTotalPoints - (previousPoint * course.credit) + (effectivePoint * course.credit);
          }
-         
          // Only add normal course credits to total credits for new CGPA
-         const newNormalCredits = normalCourses.reduce((sum, c) => sum + c.credit, 0);
-         const totalNewCredits = completedCredits + newNormalCredits;
+         var totalNewCredits = completedCredits + normalCourses.reduce((sum, c) => sum + c.credit, 0);
          newCGPA = totalNewCredits === 0 ? 0 : (newTotalPoints / totalNewCredits);
          newCGPA = Math.min(newCGPA, 4.0); // Cap at 4.0
        }
@@ -628,9 +624,6 @@
        const regularCoursesCount = normalCourses.length;
        
        // Show the modal directly (no alert popup)
-       // Only add normal course credits to total credits for display
-       const newNormalCredits = normalCourses.reduce((sum, c) => sum + c.credit, 0);
-       const totalNewCredits = completedCredits + newNormalCredits;
        showResultsModal(semesterCredits, displaySemesterGPA, completedCredits, currentCGPA, totalNewCredits, newCGPA);
     }
 
