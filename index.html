@@ -425,7 +425,7 @@
          const newPoint = GRADE_MAPPING[grade] || 0.00;
          
          if (newPoint < previousPoint) {
-           const shouldContinue = confirm(`Warning: Your new grade (${grade}) is lower than your previous grade (${previousGrade}). Do you want to continue? This will replace your previous grade.`);
+           const shouldContinue = confirm(`Warning: Your new grade (${grade}) is lower than your previous grade (${previousGrade}). Do you want to continue? This will use the maximum grade between the two.`);
            if (!shouldContinue) {
              return;
            }
@@ -440,9 +440,10 @@
                if (isRetake) {
           const previousPoint = GRADE_MAPPING[previousGrade] || 0.00;
           const newPoint = GRADE_MAPPING[grade] || 0.00;
-          // For retakes, use the actual new grade (no capping)
-          gradePoint = newPoint;
-          courseInfo = `${credit} credits, Previous: ${previousGrade} (${previousPoint.toFixed(2)}), New: ${grade} (${newPoint.toFixed(2)})`;
+          // For retakes, use the maximum grade between previous and new
+          gradePoint = Math.max(previousPoint, newPoint);
+          const effectiveGrade = newPoint >= previousPoint ? grade : previousGrade;
+          courseInfo = `${credit} credits, Previous: ${previousGrade} (${previousPoint.toFixed(2)}), New: ${grade} (${newPoint.toFixed(2)}), Effective: ${effectiveGrade} (${gradePoint.toFixed(2)})`;
         } else {
           gradePoint = GRADE_MAPPING[grade] || 0.00;
           courseInfo = `${credit} credits, Grade ${grade} (${gradePoint.toFixed(2)} GPA)`;
@@ -492,12 +493,15 @@
             const newPoint = GRADE_MAPPING[course.grade] || 0.00;
             const gradeImprovement = newPoint - previousPoint;
             const isImprovement = newPoint > previousPoint;
+            const effectiveGrade = newPoint >= previousPoint ? course.grade : course.previousGrade;
+            const effectivePoint = Math.max(previousPoint, newPoint);
             
             courseDisplay = `<strong>Course ${index + 1}:</strong> ${course.credit} credits<br>
-              <span style="color: #dc3545; font-weight: 600;">[Retake]</span> Previous: ${course.previousGrade} → New: ${course.grade}<br>
-              <span style="color: ${isImprovement ? '#28a745' : '#ffc107'}; font-weight: 600;">${isImprovement ? 'Grade Improved' : 'No Improvement'}</span>`;
+              <span style="color: #dc3545; font-weight: 600;">[Retake]</span> Previous: ${course.previousGrade} (${previousPoint.toFixed(2)}) → New: ${course.grade} (${newPoint.toFixed(2)})<br>
+              <span style="color: ${isImprovement ? '#28a745' : '#ffc107'}; font-weight: 600;">Effective Grade: ${effectiveGrade} (${effectivePoint.toFixed(2)})</span>`;
           } else {
-            courseDisplay = `<strong>Course ${index + 1}:</strong> ${course.credit} credits, Grade ${course.grade}`;
+            const gradePoint = GRADE_MAPPING[course.grade] || 0.00;
+            courseDisplay = `<strong>Course ${index + 1}:</strong> ${course.credit} credits, Grade ${course.grade} (${gradePoint.toFixed(2)})`;
           }
          
          return `
@@ -594,8 +598,11 @@
            const previousPoint = GRADE_MAPPING[course.previousGrade] || 0.00;
            const newPoint = GRADE_MAPPING[course.grade] || 0.00;
            
-           // Remove old grade impact and add new grade impact
-           newTotalPoints = newTotalPoints - (previousPoint * course.credit) + (newPoint * course.credit);
+           // Use the maximum grade between previous and new
+           const effectivePoint = Math.max(previousPoint, newPoint);
+           
+           // Remove old grade impact and add effective grade impact
+           newTotalPoints = newTotalPoints - (previousPoint * course.credit) + (effectivePoint * course.credit);
          }
          
          const totalNewCredits = completedCredits + semesterCredits;
